@@ -1,0 +1,121 @@
+From b72afbe335e0d182f5b2e1807824326ee4c39200 Mon Sep 17 00:00:00 2001
+From: PES1UG24AM373 <pes1ug24am373@stu.pes.edu>
+Date: Mon, 26 Oct 2026 07:55:40 +0000
+Subject: [PATCH 2/5] refactor(pylint): raise score from 5.60 to 10.00
+
+- W0102: mutable default `equipment_list=[]` -> None, created per call.
+- W0603/C0103: replace `global next_reservation` with itertools.count.
+- W0702 gone with the bare except removed in the Bandit commit.
+- C0116/C0114: add module and function docstrings.
+- C0103: rename logConflicts -> log_conflicts.
+- C0206/C0209: iterate with .values() and use f-strings.
+- W1514/R1732: open files with encoding="utf-8" inside `with`.
+- W0612: drop unused variables in main(); guard main() with __name__.
+---
+ scheduler_system.py | 60 ++++++++++++++++++++++++++++-----------------
+ 1 file changed, 37 insertions(+), 23 deletions(-)
+
+diff --git a/scheduler_system.py b/scheduler_system.py
+index cf416a4..3fcc8b4 100644
+--- a/scheduler_system.py
++++ b/scheduler_system.py
+@@ -1,59 +1,73 @@
++"""Conference room and equipment scheduler.
++
++Books rooms for time slots, allocates equipment such as projectors and
++webcams, logs double bookings and exports the schedule to JSON.
++"""
++import itertools
+ import json
+ from datetime import datetime
+ 
+-# Global state
++# Shared state (mutated in place, never rebound, so no `global` is needed)
+ reservations = {}
+ equipment_pool = {"projector": 2, "microphone": 4, "webcam": 1}
+ conflicts = []
+-next_reservation = 1
++_RESERVATION_IDS = itertools.count(1)
+ 
+-def schedule_room(room_id, time_slot, equipment_list=[]):
+-    global next_reservation
+-    for r in reservations:
+-        if reservations[r]["room"] == room_id and reservations[r]["slot"] == time_slot:
+-            conflicts.append("%s double-booked at %s" % (room_id, time_slot))
++def schedule_room(room_id, time_slot, equipment_list=None):
++    """Book a room for a slot, reserve equipment and return the reservation id."""
++    if equipment_list is None:
++        equipment_list = []
++    for reservation in reservations.values():
++        if reservation["room"] == room_id and reservation["slot"] == time_slot:
++            conflicts.append(f"{room_id} double-booked at {time_slot}")
+     for e in equipment_list:
+         equipment_pool[e] = equipment_pool[e] - 1
+-    reservations[next_reservation] = {"room": room_id, "slot": time_slot, "equipment": equipment_list}
+-    next_reservation += 1
+-    return next_reservation - 1
++    reservation_id = next(_RESERVATION_IDS)
++    reservations[reservation_id] = {
++        "room": room_id, "slot": time_slot, "equipment": equipment_list}
++    return reservation_id
+ 
+ def cancel_reservation(reservation_id):
++    """Cancel a reservation and return its equipment to the pool."""
+     reservation = reservations.pop(reservation_id, None)
+     if reservation is None:
+-        print("No reservation with id %s to cancel" % reservation_id)
++        print(f"No reservation with id {reservation_id} to cancel")
+         return
+     for e in reservation["equipment"]:
+         equipment_pool[e] += 1
+ 
+ def slot_hours(time_slot):
++    """Return the length in hours of a slot written like '09-11'."""
+     start, end = time_slot.split("-")
+     return int(end) - int(start)
+ 
+ def export_schedule(file="schedule.json"):
+-    f = open(file, "w")
+-    f.write(json.dumps(reservations))
+-    f.close()
++    """Write all reservations to a JSON file."""
++    with open(file, "w", encoding="utf-8") as f:
++        f.write(json.dumps(reservations))
+ 
+-def logConflicts(file="conflicts.log"):
+-    with open(file, "a") as f:
++def log_conflicts(file="conflicts.log"):
++    """Append recorded conflicts to a log file, then print the whole log."""
++    with open(file, "a", encoding="utf-8") as f:
+         for c in conflicts:
+-            f.write(str(datetime.now()) + " " + c + "\n")
+-    with open(file) as f:
++            f.write(f"{datetime.now()} {c}\n")
++    with open(file, encoding="utf-8") as f:
+         print(f.read(), end="")
+ 
+ def main():
+-    a = schedule_room("Board-1", "09-11")
+-    a_more = schedule_room("Board-1", "09-11")
++    """Run a short demonstration of the scheduler."""
++    schedule_room("Board-1", "09-11")
++    schedule_room("Board-1", "09-11")
+     b = schedule_room("Huddle-3", "14-12")
+-    c = schedule_room("Huddle-3", 1530)
++    schedule_room("Huddle-3", 1530)
+     print("Slot length for b:", slot_hours(reservations[b]["slot"]))
+     cancel_reservation(77)
+     slot = input("Slot for Board-2, like 10-12 (Enter for 10-12): ") or "10-12"
+     schedule_room("Board-2", slot, ["projector", "webcam"])
+     export_schedule()
+-    logConflicts()
++    log_conflicts()
+     print("Equipment left:", equipment_pool)
+     print("Reservations:", reservations)
+ 
+-main()
++if __name__ == "__main__":
++    main()
+-- 
+2.51.2.windows.1
+

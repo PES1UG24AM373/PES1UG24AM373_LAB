@@ -1,0 +1,77 @@
+From 4f442d56d9ca522359ccf123992014042fdd125c Mon Sep 17 00:00:00 2001
+From: PES1UG24AM373 <pes1ug24am373@stu.pes.edu>
+Date: Mon, 26 Oct 2026 07:55:49 +0000
+Subject: [PATCH 3/5] style(flake8): fix all PEP 8 formatting issues
+
+- E302/E305: two blank lines around top-level functions and before the
+  __main__ guard.
+- E501: wrap the over-long docstring line.
+- E722/F841 were already resolved by the Bandit and Pylint commits.
+---
+ scheduler_system.py | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/scheduler_system.py b/scheduler_system.py
+index 3fcc8b4..f268041 100644
+--- a/scheduler_system.py
++++ b/scheduler_system.py
+@@ -13,8 +13,12 @@ equipment_pool = {"projector": 2, "microphone": 4, "webcam": 1}
+ conflicts = []
+ _RESERVATION_IDS = itertools.count(1)
+ 
++
+ def schedule_room(room_id, time_slot, equipment_list=None):
+-    """Book a room for a slot, reserve equipment and return the reservation id."""
++    """Book a room for a slot and reserve equipment.
++
++    Returns the new reservation id.
++    """
+     if equipment_list is None:
+         equipment_list = []
+     for reservation in reservations.values():
+@@ -27,6 +31,7 @@ def schedule_room(room_id, time_slot, equipment_list=None):
+         "room": room_id, "slot": time_slot, "equipment": equipment_list}
+     return reservation_id
+ 
++
+ def cancel_reservation(reservation_id):
+     """Cancel a reservation and return its equipment to the pool."""
+     reservation = reservations.pop(reservation_id, None)
+@@ -36,16 +41,19 @@ def cancel_reservation(reservation_id):
+     for e in reservation["equipment"]:
+         equipment_pool[e] += 1
+ 
++
+ def slot_hours(time_slot):
+     """Return the length in hours of a slot written like '09-11'."""
+     start, end = time_slot.split("-")
+     return int(end) - int(start)
+ 
++
+ def export_schedule(file="schedule.json"):
+     """Write all reservations to a JSON file."""
+     with open(file, "w", encoding="utf-8") as f:
+         f.write(json.dumps(reservations))
+ 
++
+ def log_conflicts(file="conflicts.log"):
+     """Append recorded conflicts to a log file, then print the whole log."""
+     with open(file, "a", encoding="utf-8") as f:
+@@ -54,6 +62,7 @@ def log_conflicts(file="conflicts.log"):
+     with open(file, encoding="utf-8") as f:
+         print(f.read(), end="")
+ 
++
+ def main():
+     """Run a short demonstration of the scheduler."""
+     schedule_room("Board-1", "09-11")
+@@ -69,5 +78,6 @@ def main():
+     print("Equipment left:", equipment_pool)
+     print("Reservations:", reservations)
+ 
++
+ if __name__ == "__main__":
+     main()
+-- 
+2.51.2.windows.1
+

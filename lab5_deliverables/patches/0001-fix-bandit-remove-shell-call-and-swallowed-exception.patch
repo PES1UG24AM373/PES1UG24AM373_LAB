@@ -1,0 +1,174 @@
+From 44770f54e442e4edc95c7403ee8bfbfc0d4d4607 Mon Sep 17 00:00:00 2001
+From: PES1UG24AM373 <pes1ug24am373@stu.pes.edu>
+Date: Mon, 26 Oct 2026 07:55:20 +0000
+Subject: [PATCH 1/5] fix(bandit): remove shell call and swallowed exception
+
+- B605 (High): replace os.system("cat " + file) with reading the file in
+  Python, so no shell is started and the filename can't inject commands.
+- B110 (Low): cancel_reservation no longer uses try/except/pass; a missing
+  reservation is reported instead of silently ignored.
+- Close log file handles with `with` so output is flushed before it is read.
+- Drop the now-unused `import os`.
+---
+ reports/before/bandit_report.txt | 47 ++++++++++++++++++++++++++++++++
+ reports/before/flake8_report.txt | 13 +++++++++
+ reports/before/pylint_report.txt | 27 ++++++++++++++++++
+ scheduler_system.py              | 22 +++++++--------
+ 4 files changed, 98 insertions(+), 11 deletions(-)
+ create mode 100644 reports/before/bandit_report.txt
+ create mode 100644 reports/before/flake8_report.txt
+ create mode 100644 reports/before/pylint_report.txt
+
+diff --git a/reports/before/bandit_report.txt b/reports/before/bandit_report.txt
+new file mode 100644
+index 0000000..77affd2
+--- /dev/null
++++ b/reports/before/bandit_report.txt
+@@ -0,0 +1,47 @@
++[main]	INFO	profile include tests: None
++[main]	INFO	profile exclude tests: None
++[main]	INFO	cli include tests: None
++[main]	INFO	cli exclude tests: None
++[main]	INFO	running on Python 3.13.17
++Run started:2026-10-26 07:54:28.871620+00:00
++
++Test results:
++>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
++   Severity: Low   Confidence: High
++   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
++   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html
++   Location: ./scheduler_system.py:27:4
++26	        del reservations[reservation_id]
++27	    except:
++28	        pass
++29	
++
++--------------------------------------------------
++>> Issue: [B605:start_process_with_a_shell] Starting a process with a shell, possible injection detected, security issue.
++   Severity: High   Confidence: High
++   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
++   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b605_start_process_with_a_shell.html
++   Location: ./scheduler_system.py:43:4
++42	        f.write(str(datetime.now()) + " " + c + "\n")
++43	    os.system("cat " + file)
++44	
++
++--------------------------------------------------
++
++Code scanned:
++	Total lines of code: 50
++	Total lines skipped (#nosec): 0
++	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 0
++
++Run metrics:
++	Total issues (by severity):
++		Undefined: 0
++		Low: 1
++		Medium: 0
++		High: 1
++	Total issues (by confidence):
++		Undefined: 0
++		Low: 0
++		Medium: 0
++		High: 2
++Files skipped (0):
+diff --git a/reports/before/flake8_report.txt b/reports/before/flake8_report.txt
+new file mode 100644
+index 0000000..5e60bc0
+--- /dev/null
++++ b/reports/before/flake8_report.txt
+@@ -0,0 +1,13 @@
++scheduler_system.py:11:1: E302 expected 2 blank lines, found 1
++scheduler_system.py:14:80: E501 line too long (87 > 79 characters)
++scheduler_system.py:18:80: E501 line too long (102 > 79 characters)
++scheduler_system.py:22:1: E302 expected 2 blank lines, found 1
++scheduler_system.py:27:5: E722 do not use bare 'except'
++scheduler_system.py:30:1: E302 expected 2 blank lines, found 1
++scheduler_system.py:34:1: E302 expected 2 blank lines, found 1
++scheduler_system.py:39:1: E302 expected 2 blank lines, found 1
++scheduler_system.py:45:1: E302 expected 2 blank lines, found 1
++scheduler_system.py:46:5: F841 local variable 'a' is assigned to but never used
++scheduler_system.py:47:5: F841 local variable 'a_more' is assigned to but never used
++scheduler_system.py:49:5: F841 local variable 'c' is assigned to but never used
++scheduler_system.py:59:1: E305 expected 2 blank lines after class or function definition, found 1
+diff --git a/reports/before/pylint_report.txt b/reports/before/pylint_report.txt
+new file mode 100644
+index 0000000..a47b73f
+--- /dev/null
++++ b/reports/before/pylint_report.txt
+@@ -0,0 +1,27 @@
++************* Module scheduler_system
++scheduler_system.py:18:0: C0301: Line too long (102/100) (line-too-long)
++scheduler_system.py:1:0: C0114: Missing module docstring (missing-module-docstring)
++scheduler_system.py:9:0: C0103: Constant name "next_reservation" doesn't conform to UPPER_CASE naming style (invalid-name)
++scheduler_system.py:11:0: C0116: Missing function or method docstring (missing-function-docstring)
++scheduler_system.py:11:0: W0102: Dangerous default value [] as argument (dangerous-default-value)
++scheduler_system.py:12:4: W0603: Using the global statement (global-statement)
++scheduler_system.py:13:4: C0206: Consider iterating with .items() (consider-using-dict-items)
++scheduler_system.py:15:29: C0209: Formatting a regular string which could be an f-string (consider-using-f-string)
++scheduler_system.py:22:0: C0116: Missing function or method docstring (missing-function-docstring)
++scheduler_system.py:27:4: W0702: No exception type(s) specified (bare-except)
++scheduler_system.py:30:0: C0116: Missing function or method docstring (missing-function-docstring)
++scheduler_system.py:34:0: C0116: Missing function or method docstring (missing-function-docstring)
++scheduler_system.py:35:8: W1514: Using open without explicitly specifying an encoding (unspecified-encoding)
++scheduler_system.py:35:8: R1732: Consider using 'with' for resource-allocating operations (consider-using-with)
++scheduler_system.py:39:0: C0116: Missing function or method docstring (missing-function-docstring)
++scheduler_system.py:39:0: C0103: Function name "logConflicts" doesn't conform to snake_case naming style (invalid-name)
++scheduler_system.py:40:8: W1514: Using open without explicitly specifying an encoding (unspecified-encoding)
++scheduler_system.py:40:8: R1732: Consider using 'with' for resource-allocating operations (consider-using-with)
++scheduler_system.py:45:0: C0116: Missing function or method docstring (missing-function-docstring)
++scheduler_system.py:46:4: W0612: Unused variable 'a' (unused-variable)
++scheduler_system.py:47:4: W0612: Unused variable 'a_more' (unused-variable)
++scheduler_system.py:49:4: W0612: Unused variable 'c' (unused-variable)
++
++-----------------------------------
++Your code has been rated at 5.60/10
++
+diff --git a/scheduler_system.py b/scheduler_system.py
+index 21da4d6..cf416a4 100644
+--- a/scheduler_system.py
++++ b/scheduler_system.py
+@@ -1,5 +1,4 @@
+ import json
+-import os
+ from datetime import datetime
+ 
+ # Global state
+@@ -20,12 +19,12 @@ def schedule_room(room_id, time_slot, equipment_list=[]):
+     return next_reservation - 1
+ 
+ def cancel_reservation(reservation_id):
+-    try:
+-        for e in reservations[reservation_id]["equipment"]:
+-            equipment_pool[e] += 1
+-        del reservations[reservation_id]
+-    except:
+-        pass
++    reservation = reservations.pop(reservation_id, None)
++    if reservation is None:
++        print("No reservation with id %s to cancel" % reservation_id)
++        return
++    for e in reservation["equipment"]:
++        equipment_pool[e] += 1
+ 
+ def slot_hours(time_slot):
+     start, end = time_slot.split("-")
+@@ -37,10 +36,11 @@ def export_schedule(file="schedule.json"):
+     f.close()
+ 
+ def logConflicts(file="conflicts.log"):
+-    f = open(file, "a")
+-    for c in conflicts:
+-        f.write(str(datetime.now()) + " " + c + "\n")
+-    os.system("cat " + file)
++    with open(file, "a") as f:
++        for c in conflicts:
++            f.write(str(datetime.now()) + " " + c + "\n")
++    with open(file) as f:
++        print(f.read(), end="")
+ 
+ def main():
+     a = schedule_room("Board-1", "09-11")
+-- 
+2.51.2.windows.1
+

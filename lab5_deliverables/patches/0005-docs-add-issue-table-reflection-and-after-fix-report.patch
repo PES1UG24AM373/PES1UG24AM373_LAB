@@ -1,0 +1,165 @@
+From 25cfed11a8f027461b12ebbdf3f25acfe66df7d2 Mon Sep 17 00:00:00 2001
+From: PES1UG24AM373 <pes1ug24am373@stu.pes.edu>
+Date: Mon, 26 Oct 2026 07:57:22 +0000
+Subject: [PATCH 5/5] docs: add issue table, reflection and after-fix reports
+
+---
+ issues.md                       | 30 ++++++++++++++++++
+ reflection.md                   | 56 +++++++++++++++++++++++++++++++++
+ reports/after/bandit_report.txt | 27 ++++++++++++++++
+ reports/after/flake8_report.txt |  0
+ reports/after/pylint_report.txt |  4 +++
+ 5 files changed, 117 insertions(+)
+ create mode 100644 issues.md
+ create mode 100644 reflection.md
+ create mode 100644 reports/after/bandit_report.txt
+ create mode 100644 reports/after/flake8_report.txt
+ create mode 100644 reports/after/pylint_report.txt
+
+diff --git a/issues.md b/issues.md
+new file mode 100644
+index 0000000..bfe02fe
+--- /dev/null
++++ b/issues.md
+@@ -0,0 +1,30 @@
++# Issues found in `scheduler_system.py`
++
++Line numbers refer to the **original** file. Reports are in `reports/before/`
++and `reports/after/`.
++
++| Tool | Before | After |
++|------|--------|-------|
++| Pylint | 5.60/10 (22 messages) | 10.00/10 |
++| Bandit | 2 issues (1 High, 1 Low) | 0 |
++| Flake8 | 13 issues | 0 |
++
++Ordered by severity: security first, then bugs, then design and style.
++
++| Issue | Type | Line(s) | Description | Fix Approach |
++|-------|------|---------|-------------|--------------|
++| Shell command built from a string (Bandit B605, **High**) | Security | 43 | `os.system("cat " + file)` starts a shell and concatenates the filename into the command, so a filename like `x; rm -rf ~` would run arbitrary commands. It also ran before the log file was closed, so the buffered conflict lines never appeared in the output. | Removed `os.system` and the `import os`. The file is now read and printed in Python after the write handle is closed (`with open(...)`). |
++| Bare `except` with `pass` (Bandit B110 Low, Pylint W0702, Flake8 E722) | Bug / Security | 27-28 | `cancel_reservation` swallowed every exception, including typos and `KeyboardInterrupt`. Cancelling a non-existent id (77) silently did nothing, and a failure half way through left equipment un-returned. | Replaced try/except with `reservations.pop(id, None)`. A missing id prints a clear message; equipment is returned only after the reservation is found. |
++| Mutable default argument (Pylint W0102) | Bug | 11 | `equipment_list=[]` is created once and shared by every call that omits it, so every default booking points at the same list object. | Default changed to `None`; a fresh list is created per call. |
++| Files opened without `with` / encoding (Pylint R1732, W1514) | Resource leak | 35-37, 40-43 | `export_schedule` and `logConflicts` opened files manually. `logConflicts` never closed its handle at all, and neither specified an encoding. | Used `with open(..., encoding="utf-8")` everywhere so files are always flushed and closed. |
++| Invalid time slots accepted (not flagged by any tool) | Logic bug | 30-32, 48-49 | `"14-12"` gave a slot length of **-2** hours, and the integer `1530` was stored as a slot even though `slot_hours` expects a string. Typing garbage such as `"abc"` at the prompt was stored as a slot, and only crashed later if `slot_hours` was called on it. | Added `parse_slot()` that requires a string `HH-HH` with `0 <= start < end <= 24`, used by both `schedule_room` and `slot_hours`. Invalid input is rejected with a message instead of a crash. |
++| Equipment can go negative / unknown item corrupts state (not flagged) | Logic bug | 16-17 | Booking a second webcam took stock to **-1**. An unknown item raised `KeyError` after earlier items had already been deducted, leaving the pool wrong. | Requests are validated up front (known item, enough stock) and rejected with `ValueError` before anything is changed. |
++| Only identical slots count as double-booking (not flagged) | Logic bug | 13-15 | `09-11` and `10-12` in the same room overlap, but were not reported because the check was `slot == slot`. | Compare parsed start/end hours for overlap. Back-to-back slots (`09-11`, `11-12`) are correctly not a conflict. |
++| Conflicts re-logged on every call (not flagged) | Logic bug | 41-42 | `logConflicts` appended the whole `conflicts` list each time it ran, so a second call duplicated every earlier entry in the log. | Conflicts are cleared once they are written. |
++| `global` statement and bad constant name (Pylint W0603, C0103) | Design | 9, 12, 19-20 | Mutating a rebound module global `next_reservation` makes the function harder to reason about and test. | Replaced with `itertools.count(1)` (`_RESERVATION_IDS`), so no `global` is needed. |
++| Function name `logConflicts` (Pylint C0103) | Style | 39 | camelCase breaks PEP 8 snake_case naming. | Renamed to `log_conflicts`. |
++| Missing docstrings (Pylint C0114, C0116) | Documentation | 1, 11, 22, 30, 34, 39, 45 | Module and all six functions had no docstring. | Added concise docstrings, including the exception and return contract on `schedule_room`. |
++| Unused variables (Pylint W0612, Flake8 F841) | Code smell | 46, 47, 49 | `a`, `a_more` and `c` were assigned and never used. | Removed the assignments; the calls are kept for their side effects. |
++| `%` formatting and index iteration (Pylint C0209, C0206) | Style | 13-15 | String built with `%` and dict iterated by key then indexed. | Used an f-string and `reservations.values()`. |
++| Formatting (Flake8 E302, E305, E501) | Style | 11, 14, 18, 22, 30, 34, 39, 45, 59 | Single blank lines between functions, no blank lines before the end-of-file call, and two lines over 79 characters. | Two blank lines around top-level definitions; long lines wrapped. |
++| `main()` runs on import (not flagged) | Design | 59 | Importing the module started the program and prompted for input, which makes it untestable. | Wrapped in `if __name__ == "__main__":`. |
+diff --git a/reflection.md b/reflection.md
+new file mode 100644
+index 0000000..bfe50c5
+--- /dev/null
++++ b/reflection.md
+@@ -0,0 +1,56 @@
++# Reflection
++
++The handout refers to reflection questions but does not print them, so these
++are the four standard questions for this lab.
++
++## 1. Which issues were the easiest and which were the hardest to fix?
++
++The easiest were the mechanical ones: Flake8 spacing and line length, unused
++variables, missing docstrings, renaming `logConflicts` and swapping `%` for an
++f-string. Each had a clear message and a one-line fix. The hardest were the
++ones where the right fix was a decision rather than an edit. Removing the
++`global` statement meant choosing a different way to hand out ids
++(`itertools.count`). Replacing the bare `except: pass` meant deciding what
++cancelling a missing reservation should do. The `os.system("cat ...")` fix
++needed care too, because I then noticed the old code printed the log before the
++file was flushed, so conflicts were never shown. The bugs the tools did not
++flag (slot validation, overlap detection, equipment stock) took the most
++thought because I had to design the rules myself.
++
++## 2. Did the static analysis tools report any false positives?
++
++None that were outright wrong. Every Bandit and Flake8 finding pointed at a
++real problem. Pylint was occasionally opinionated rather than wrong: the
++missing-docstring warnings on tiny helpers and the `global` warning are style
++and design advice, and the line-length limits disagree between tools (Pylint
++100, Flake8 79). The tools also overlap, so one line often produced several
++reports (the bare `except` appeared as Bandit B110, Pylint W0702 and Flake8
++E722; the unused variables as Pylint W0612 and Flake8 F841). Fixing the line
++once cleared all of them, which is worth knowing so the raw message count is
++not mistaken for the number of separate problems.
++
++## 3. How would you integrate static analysis into a real workflow?
++
++Run all three tools automatically so nobody has to remember. A pre-commit hook
++would catch formatting and obvious security problems before code is committed.
++A CI job on every pull request would fail the build on any Bandit High finding,
++on any Flake8 error, and on a Pylint score below a threshold (for example
++`pylint --fail-under=9.5`). Shared configuration in `pyproject.toml` or
++`.pylintrc` keeps the rules consistent across the team and lets a justified
++exception be recorded with a comment rather than ignored. Editor integration
++gives the earliest feedback while writing code. Reports from CI can be kept as
++artifacts so score trends are visible over time.
++
++## 4. What tangible improvements did you see after the fixes?
++
++The numbers moved clearly: Pylint went from 5.60 to 10.00, Bandit from one High
++and one Low issue to none, and Flake8 from 13 issues to none. The program also
++behaves better. There is no shell call, so the filename cannot inject commands.
++Files are always closed, which is why the double-booking now appears in the
++log output. Invalid slots such as `14-12` and `1530` are rejected instead of
++producing a -2 hour booking, equipment stock can no longer go negative,
++overlapping bookings are detected, and the conflict log no longer repeats
++itself. One lesson is that a perfect score does not mean correct code: the
++tools never flagged the negative duration, the overlap bug or the stock bug.
++Those only showed up by running the program and reading its output carefully,
++so static analysis complements testing rather than replacing it.
+diff --git a/reports/after/bandit_report.txt b/reports/after/bandit_report.txt
+new file mode 100644
+index 0000000..e53430a
+--- /dev/null
++++ b/reports/after/bandit_report.txt
+@@ -0,0 +1,27 @@
++[main]	INFO	profile include tests: None
++[main]	INFO	profile exclude tests: None
++[main]	INFO	cli include tests: None
++[main]	INFO	cli exclude tests: None
++[main]	INFO	running on Python 3.13.17
++Run started:2026-10-26 07:56:39.437008+00:00
++
++Test results:
++	No issues identified.
++
++Code scanned:
++	Total lines of code: 105
++	Total lines skipped (#nosec): 0
++	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 0
++
++Run metrics:
++	Total issues (by severity):
++		Undefined: 0
++		Low: 0
++		Medium: 0
++		High: 0
++	Total issues (by confidence):
++		Undefined: 0
++		Low: 0
++		Medium: 0
++		High: 0
++Files skipped (0):
+diff --git a/reports/after/flake8_report.txt b/reports/after/flake8_report.txt
+new file mode 100644
+index 0000000..e69de29
+diff --git a/reports/after/pylint_report.txt b/reports/after/pylint_report.txt
+new file mode 100644
+index 0000000..d7495ee
+--- /dev/null
++++ b/reports/after/pylint_report.txt
+@@ -0,0 +1,4 @@
++
++--------------------------------------------------------------------
++Your code has been rated at 10.00/10 (previous run: 10.00/10, +0.00)
++
+-- 
+2.51.2.windows.1
+

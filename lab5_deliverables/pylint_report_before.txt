@@ -1,0 +1,27 @@
+************* Module scheduler_system
+scheduler_system.py:18:0: C0301: Line too long (102/100) (line-too-long)
+scheduler_system.py:1:0: C0114: Missing module docstring (missing-module-docstring)
+scheduler_system.py:9:0: C0103: Constant name "next_reservation" doesn't conform to UPPER_CASE naming style (invalid-name)
+scheduler_system.py:11:0: C0116: Missing function or method docstring (missing-function-docstring)
+scheduler_system.py:11:0: W0102: Dangerous default value [] as argument (dangerous-default-value)
+scheduler_system.py:12:4: W0603: Using the global statement (global-statement)
+scheduler_system.py:13:4: C0206: Consider iterating with .items() (consider-using-dict-items)
+scheduler_system.py:15:29: C0209: Formatting a regular string which could be an f-string (consider-using-f-string)
+scheduler_system.py:22:0: C0116: Missing function or method docstring (missing-function-docstring)
+scheduler_system.py:27:4: W0702: No exception type(s) specified (bare-except)
+scheduler_system.py:30:0: C0116: Missing function or method docstring (missing-function-docstring)
+scheduler_system.py:34:0: C0116: Missing function or method docstring (missing-function-docstring)
+scheduler_system.py:35:8: W1514: Using open without explicitly specifying an encoding (unspecified-encoding)
+scheduler_system.py:35:8: R1732: Consider using 'with' for resource-allocating operations (consider-using-with)
+scheduler_system.py:39:0: C0116: Missing function or method docstring (missing-function-docstring)
+scheduler_system.py:39:0: C0103: Function name "logConflicts" doesn't conform to snake_case naming style (invalid-name)
+scheduler_system.py:40:8: W1514: Using open without explicitly specifying an encoding (unspecified-encoding)
+scheduler_system.py:40:8: R1732: Consider using 'with' for resource-allocating operations (consider-using-with)
+scheduler_system.py:45:0: C0116: Missing function or method docstring (missing-function-docstring)
+scheduler_system.py:46:4: W0612: Unused variable 'a' (unused-variable)
+scheduler_system.py:47:4: W0612: Unused variable 'a_more' (unused-variable)
+scheduler_system.py:49:4: W0612: Unused variable 'c' (unused-variable)
+
+-----------------------------------
+Your code has been rated at 5.60/10
+
